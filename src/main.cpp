@@ -19,6 +19,10 @@
 #include "SPIFFS.h"
 #include <Arduino_JSON.h>
 #include <AsyncElegantOTA.h>
+#include <Adafruit_ADS1X15.h>
+#include <SPI.h>
+Adafruit_ADS1115 ads;
+
 
 // Set your Static IP address
 // IPAddress Ip(172, 20, 10, 7);
@@ -27,12 +31,24 @@
 // IPAddress dns(172, 20, 10, 1);
 
 // Replace with your network credentials
-const char *ssid = "";
-const char *password = "";
+const char *ssid = "Meriem's iphone";
+const char *password = "meriemsg98";
 
 const char *host = "emoncms.org";
 String sensorName = "essai";
 String apikey = "c61d0e426d578d68fc7908693fd13077";
+
+unsigned long tim1, tim2, now;
+unsigned long lasttim, elapsed;
+unsigned long lastsec = 0;
+int counter = 0;
+
+double Vsum = 0;
+double totalSecs = 0;
+int numzeros = 0;
+double V;
+ double avgV = Vsum / counter;
+
 
 WiFiClient client;
 const int httpPort = 80;
@@ -50,7 +66,7 @@ AsyncWebSocket ws("/ws");
 // Set number of outputs
 #define NUM_OUTPUTS 4
 
-// Assign each GPIO to an output
+// Assign each GPIO to an output:
 int outputGPIOs[NUM_OUTPUTS] = {2, 4, 12, 14};
 
 // Initialize SPIFFS
@@ -201,43 +217,84 @@ void loop()
     {
       Serial.println("Connection OK");
     }
+    
+    tim1 = micros();
+    int16_t adc1;  
+    adc1 = ads.readADC_SingleEnded(1);
+    V = ads.computeVolts(adc1);
+    Vsum += V;
+    if (V <= 0) numzeros++; else numzeros=0;
+    if (numzeros > 2) 
+    {
+      Vsum = 0;
+      counter = 0;
+      totalSecs = 0;
+      lastsec = 0;
+      numzeros = 0;
+    }
+    else
+    {
+      counter++;
+      now = (tim1 + tim2) / 2; 
+      elapsed = now - lasttim;
+      lastsec += elapsed;
+      lasttim = now;
+      
+     if (lastsec > 1000000) 
+     {
+      // end of our second
+      totalSecs += lastsec;
 
-    String url = "https://emoncms.org";
-    url += "/input/post?node=";
-    url += sensorName;
-    url += "&json={'Pin1':";
-    url += 28;
-    url += ",'Pin2':";
-    url += 32;
-    url += "}&apikey=";
-    url += apikey;
+      Serial.print(counter);
+      Serial.print(" V: ");
+      Serial.print(avgV, 7);
+      Serial.print(" S: ");
+      Serial.print(totalSecs / 1000000);
+      Serial.println();
+     }
+    } 
+    
+      String url = "https://emoncms.org";
+      url += "/input/post?node=";
+      url += sensorName;
+      url += "&json={'V':";
+      url += avgV;
+      url += ",'S':";
+      url += totalSecs/1000000;
+      url += "}&apikey=";
+      url += apikey;
 
-    Serial.print("Requesting URL: ");
-    Serial.println(url);
+      Serial.print("Requesting URL: ");
+      Serial.println(url);
 
-    client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+      client.print(String("GET ") + url + " HTTP/1.1\r\n" +
                  "Host: " + host + "\r\n" +
                  "Connection: close\r\n\r\n");
-    unsigned long timeout = millis();
-    while (client.available() == 0)
-    {
-      if (millis() - timeout > 5000)
+      unsigned long timeout = millis();
+      while (client.available() == 0)
       {
-        Serial.println(">>> Client Timeout !");
-        client.stop();
-        return;
+        if (millis() - timeout > 5000)
+        {
+          Serial.println(">>> Client Timeout !");
+          client.stop();
+          return;
+        }
       }
-    }
 
-    // Read all the lines of the reply from server and print them to Serial
-    while (client.available())
-    {
-      String line = client.readStringUntil('\r');
-      Serial.print(line);
-    }
+      // Read all the lines of the reply from server and print them to Serial
+      while (client.available())
+      {
+        String line = client.readStringUntil('\r');
+        Serial.print(line);
+      }
 
-    Serial.println();
-    Serial.println("closing connection");
-    msgTimeout = millis();
+      Serial.println();
+      Serial.println("closing connection");
+      msgTimeout = millis();
+      
+      Vsum = 0;
+      counter = 0;
+      lastsec = 0;
+     
   }
 }
