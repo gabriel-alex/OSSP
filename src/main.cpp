@@ -38,6 +38,7 @@ WiFiClient client;
 const int httpPort = 80;
 
 const long msgTimeoutLimit = 10000; // 5 seconds
+const long connectionTimeoutLimit = 30000; // 30 seconds
 unsigned long msgTimeout = millis();
 
 // Create AsyncWebServer object on port 80
@@ -71,15 +72,21 @@ void initWiFi()
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
-
+  
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi ..");
-  while (WiFi.status() != WL_CONNECTED)
+  unsigned long connectionTimeout = millis(); 
+  while (WiFi.status() != WL_CONNECTED && millis() - connectionTimeout < connectionTimeoutLimit )
   {
     Serial.print('.');
     delay(1000);
   }
-  Serial.println(WiFi.localIP());
+  if(millis() - connectionTimeout > connectionTimeoutLimit){
+    Serial.println("Connection failed");
+  }else{
+    Serial.println(WiFi.localIP());
+  }
+  
 }
 
 String getOutputStates()
@@ -182,7 +189,7 @@ void loop()
   AsyncElegantOTA.loop();
   ws.cleanupClients();
 
-  if (millis() - msgTimeout > msgTimeoutLimit)
+  if (millis() - msgTimeout > msgTimeoutLimit && WiFi.status() == WL_CONNECTED)
   {
     Serial.println("Testing host");
     if (!client.connect(host, httpPort))
