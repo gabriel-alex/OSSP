@@ -1,0 +1,84 @@
+body {
+	padding:0;
+}
+
+.mobilehide {
+	display: none;
+}
+
+.icon{
+	width: 55px;
+	float:right;
+}
+
+.button {
+	color:white;
+	border-color:white;
+	background-color:#212121;
+}
+
+.header {
+	background-color: #212121;
+	color:white;
+}
+
+.margin{
+	margin-left:5%;
+	margin-top:2.5%;
+	margin-bottom:2.5%;
+}
+
+
+.title {
+	font-family: 'Permanent Marker', cursive;	
+}
+
+.section {
+	border:solid;
+	border-width:1px;
+	border-color:blue;
+	margin:2%;	
+}
+
+.center {
+	text-align: center;
+}
+
+@media (min-width: 40.0rem) { 
+
+	
+	#menubtn {
+		display:none;
+	}
+	
+	.mobilehide {
+		display:flex;
+		margin-bottom:5px;
+	}
+	
+	 
+}
+
+/* Larger than tablet screen */
+@media (min-width: 80.0rem) { 
+	#menubtn{
+		display:none;
+	}
+	
+	.mobilehide {
+		display:flex;
+		margin-bottom:5px;
+	}
+}
+
+/* Larger than desktop screen */
+@media (min-width: 120.0rem) {
+	#menubtn {
+		display:none;
+	}
+	
+	.mobilehide {
+		display:flex;
+		margin-bottom:5px;
+	}
+ }

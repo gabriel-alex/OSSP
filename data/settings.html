@@ -1,29 +1,15 @@
 <!DOCTYPE HTML><html>
 <head>
-  <title>OSSP</title>
-  <meta charset="utf-8">
+  <title>ESP IOT DASHBOARD</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css" href="css/milligram.min.css">
-  <link rel="stylesheet" type="text/css" href="css/style.css">
+  <link rel="stylesheet" type="text/css" href="style.css">
   <!-- <link rel="icon"  type="image/png" href="favicon.png"> -->
-  <!-- <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous"> -->
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
 </head>
 <body>
-  <div class='container'>
-    <div class="row header">
-        <div class="column">
-            <h1 class="margin">OSSP - v1
-            <a class="icon" id="menubtn" href="javascript:void(0)"><img src="images\menu-white.png"></a>
-            </h1>
-        </div>
-      </div>
-    <div class='navbar mobilehide' id="menuBody">
-      <ul>
-        <li><a class="active" href="">Dashboard</a></li>
-        <li><a href="/settings">Settings</a></li>
-        <li><a href="/update">Firmware Update</a></li>
-      </ul>
-    </div>
+  <div class="topnav">
+    <h1>SETTINGS</h1>
+  </div>
   <div class="content">
     <div class="card-grid">
         <div class="card">             
@@ -60,8 +46,29 @@
         </div> -->
     </div>
 </div>
-<script src="js/script.js"></script>
+<div class="container">
+    <form>
+        <fieldset>
+          <label for="nameField">Name</label>
+          <input type="text" placeholder="CJ Patoilo" id="nameField">
+          <label for="ageRangeField">Age Range</label>
+          <select id="ageRangeField">
+            <option value="0-13">0-13</option>
+            <option value="14-17">14-17</option>
+            <option value="18-23">18-23</option>
+            <option value="24+">24+</option>
+          </select>
+          <label for="commentField">Comment</label>
+          <textarea placeholder="Hi CJ …" id="commentField"></textarea>
+          <div class="float-right">
+            <input type="checkbox" id="confirmField">
+            <label class="label-inline" for="confirmField">Send a copy to yourself</label>
+          </div>
+          <input class="button-primary" type="submit" value="Send">
+        </fieldset>
+      </form>
+    
+</div>
+<script src="/script.js"></script>
 </body>
 </html>
-
-
