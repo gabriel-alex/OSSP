@@ -24,7 +24,8 @@ const char *ssid = "";
 const char *password = "";
 
 const char *host = "emoncms.org";
-String sensorName = "essai";
+String id = String((uint32_t)ESP.getEfuseMac(), HEX);
+String sensorName = "OSSP " + id;
 String apikey = "c61d0e426d578d68fc7908693fd13077";
 
 unsigned long tim1, tim2, now;
@@ -52,10 +53,10 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 // Set number of outputs
-#define NUM_OUTPUTS 4
+#define NUM_OUTPUTS 1
 
 // Assign each GPIO to an output:
-int outputGPIOs[NUM_OUTPUTS] = {2, 4, 12, 14};
+int outputGPIOs[NUM_OUTPUTS] = {2};
 
 // Initialize SPIFFS
 void initSPIFFS()
@@ -71,27 +72,34 @@ void initSPIFFS()
 void initWiFi()
 {
   WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP("OOSP", "justepourtester");
+  WiFi.softAP(sensorName.c_str(), "justepourtester");
   IPAddress IP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi ..");
-  unsigned long connectionTimeout = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - connectionTimeout < connectionTimeoutLimit)
+  if (ssid != "")
   {
-    Serial.print('.');
-    delay(1000);
-  }
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting to WiFi ..");
+    unsigned long connectionTimeout = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - connectionTimeout < connectionTimeoutLimit)
+    {
+      Serial.print('.');
+      delay(1000);
+    }
 
-  if (millis() - connectionTimeout > connectionTimeoutLimit)
-  {
-    Serial.println("Connection failed");
+    if (millis() - connectionTimeout > connectionTimeoutLimit)
+    {
+      Serial.println("Connection failed");
+    }
+    else
+    {
+      Serial.println(WiFi.localIP());
+    }
   }
   else
   {
-    Serial.println(WiFi.localIP());
+    Serial.println("No SSID provided by default.");
   }
 }
 
@@ -103,6 +111,10 @@ String getOutputStates()
     myArray["gpios"][i]["output"] = String(outputGPIOs[i]);
     myArray["gpios"][i]["state"] = String(digitalRead(outputGPIOs[i]));
   }
+  myArray["power"] = 10;
+  myArray["current"] = 8;
+  myArray["voltage"] = 8;
+  myArray["powerfactor"] = 20;
   String jsonString = JSON.stringify(myArray);
   return jsonString;
 }

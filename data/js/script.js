@@ -41,6 +41,13 @@ function onMessage(event) {
                     document.getElementById(output+"s").innerHTML = "OFF";
                 }
             }
+            if (myObj.current != null){
+                document.getElementById("current").innerHTML = "4546";
+            }
+            if (myObj.power != null){
+                document.getElementById("power").innerHTML = myObj.power.toString();
+            }
+            
     console.log(event.data);
 }
 
@@ -56,17 +63,15 @@ function toggleCheckbox (element) {
     }
 }
 
-(function () {
-	
-	$('#menubtn').on('click',function () {
-		if($('#menuBody').val() == "none" || $('#menuBody').val() == "") {
-			$('#menuBody').val('flex').removeClass('mobilehide')
-		}else if($('#menuBody').val() == "flex") {
-			$('#menuBody').val('none').addClass('mobilehide')
-		}
-		//console.log('click')
-	})
-	
-	console.log('script')
-	
-})
+function toggleMenu() {
+    console.log('click')
+    var menuElement = document.getElementById('menuBody')
+    if( menuElement.style.flex == "none" || menuElement.style.flex == "" || menuElement.style.flex == "0 0 auto"){
+        menuElement.style.flex = "auto"
+        menuElement.classList.remove("mobilehide")
+    }else if (menuElement.style.flex == "1 1 auto"){
+
+        menuElement.style.flex = "none"
+        menuElement.classList.add("mobilehide")
+    }
+}
