@@ -7,11 +7,13 @@
 #include <AsyncElegantOTA.h>
 #include <Adafruit_ADS1X15.h>
 #include <SPI.h>
+#include "EmonLib.h"
 
 #include "SPIFFS.h"
 #include "config.h"
 
-Adafruit_ADS1115 ads;
+// Set number of outputs
+#define NUM_OUTPUTS 1
 
 // Set your Static IP address
 // IPAddress Ip(172, 20, 10, 7);
@@ -39,24 +41,28 @@ int numzeros = 0;
 double V;
 // double avgV = Vsum / counter;
 
-WiFiClient client;
+// Assign each GPIO to an output:
+int outputGPIOs[NUM_OUTPUTS] = {2};
+
 const int httpPort = 80;
 
 const long msgTimeoutLimit = 10000;        // 5 seconds
 const long connectionTimeoutLimit = 30000; // 30 seconds
 unsigned long msgTimeout = millis();
 
+//*** Init object ***//
+
+EnergyMonitor emon1;
+
+WiFiClient client;
+
+Adafruit_ADS1115 ads;
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
 // Create a WebSocket object
 AsyncWebSocket ws("/ws");
-
-// Set number of outputs
-#define NUM_OUTPUTS 1
-
-// Assign each GPIO to an output:
-int outputGPIOs[NUM_OUTPUTS] = {2};
 
 // Initialize SPIFFS
 void initSPIFFS()
@@ -174,11 +180,16 @@ void setup()
   // Serial port for debugging purposes
   Serial.begin(115200);
 
+  // sdefine parameters for energy monitoring lib
+  emon1.current(1, 111.1);
+
   // Set GPIOs as outputs
   for (int i = 0; i < NUM_OUTPUTS; i++)
   {
     pinMode(outputGPIOs[i], OUTPUT);
   }
+
+
   initSPIFFS();
   initWiFi();
   initWebSocket();
@@ -213,6 +224,9 @@ void loop()
 {
   AsyncElegantOTA.loop();
   ws.cleanupClients();
+
+  // Measure the current
+  double Irms = emon1.calcIrms(1480);
 
   if (millis() - msgTimeout > msgTimeoutLimit && WiFi.status() == WL_CONNECTED)
   {

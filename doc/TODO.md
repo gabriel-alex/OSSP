@@ -6,7 +6,7 @@
 - [ ] Unify the CSS framework
 
 ## Measurment 
-- [ ] Integrate the EmonLib
+- [X] Integrate the EmonLib
 - [ ] Calibrate EmonLib
 - [ ] Validate the measurment
 - [ ] Write the protocol to calibrate the device
