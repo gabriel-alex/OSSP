@@ -42,12 +42,16 @@ unsigned long tim1, tim2, now;
 unsigned long lasttim, elapsed;
 unsigned long lastsec = 0;
 int counter = 0;
-
+double totalPower = 0;
+double Asum = 0;
 double Vsum = 0;
+double WuSsum = 0;
 double totalSecs = 0;
+double sensitivity = 0.066;
 int numzeros = 0;
-double V;
- double avgV = Vsum / counter;
+double V,A, W, WuS, adcVoltage;
+double avgV = Vsum / counter;
+double avgA = Asum / counter;
 
 
 WiFiClient client;
@@ -219,15 +223,32 @@ void loop()
     }
     
     tim1 = micros();
-    int16_t adc1;  
+    tim2 = micros();
+    int16_t adc1;
+    int16_t adc0;  
     adc1 = ads.readADC_SingleEnded(1);
+    adc0 = ads.readADC_SingleEnded(0);
+
     V = ads.computeVolts(adc1);
     Vsum += V;
+
+    adcVoltage = ads.computeVolts(adc0);
+    A =adcVoltage / sensitivity ;
+    Asum += A;
+
+    W = A * V;
+    WuS = W * elapsed;
+    WuSsum += WuS;
+
+
     if (V <= 0) numzeros++; else numzeros=0;
     if (numzeros > 2) 
     {
       Vsum = 0;
       counter = 0;
+      Asum = 0;
+      WuSsum = 0;
+      totalPower = 0;
       totalSecs = 0;
       lastsec = 0;
       numzeros = 0;
@@ -243,11 +264,20 @@ void loop()
      if (lastsec > 1000000) 
      {
       // end of our second
+      double WH = WuSsum / 3600000000; // divide by uS / H
+      totalPower += WH;
+
       totalSecs += lastsec;
 
       Serial.print(counter);
       Serial.print(" V: ");
       Serial.print(avgV, 7);
+      Serial.print(" A: ");
+      Serial.print(avgA, 7);
+      Serial.print(" W: ");
+      Serial.print(avgV * avgA, 7);
+      Serial.print(" P: ");
+      Serial.print(totalPower,7);
       Serial.print(" S: ");
       Serial.print(totalSecs / 1000000);
       Serial.println();
@@ -259,6 +289,12 @@ void loop()
       url += sensorName;
       url += "&json={'V':";
       url += avgV;
+      url += ",'A':";
+      url += avgA;
+      url += ",'W':";
+      url += avgV * avgA;
+      url += ",'P':";
+      url += totalPower;
       url += ",'S':";
       url += totalSecs/1000000;
       url += "}&apikey=";
@@ -294,6 +330,8 @@ void loop()
       
       Vsum = 0;
       counter = 0;
+      Asum = 0;
+      WuSsum = 0;
       lastsec = 0;
      
   }
