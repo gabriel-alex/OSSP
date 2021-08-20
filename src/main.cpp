@@ -34,9 +34,9 @@ Adafruit_ADS1115 ads;
 const char *ssid = "Meriem's iphone";
 const char *password = "meriemsg98";
 
-const char *host = "emoncms.org";
+const char *host = "oem.lf2l.fr";
 String sensorName = "essai";
-String apikey = "c61d0e426d578d68fc7908693fd13077";
+String apikey = "c2b8c4a5fc94e757e0d6853841d553f1";
 
 unsigned long tim1, tim2, now;
 unsigned long lasttim, elapsed;
@@ -284,7 +284,7 @@ void loop()
      }
     } 
     
-      String url = "https://emoncms.org";
+      String url = "https://oem.lf2l.fr";
       url += "/input/post?node=";
       url += sensorName;
       url += "&json={'V':";
