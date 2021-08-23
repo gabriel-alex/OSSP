@@ -50,8 +50,9 @@ double totalSecs = 0;
 double sensitivity = 0.066;
 int numzeros = 0;
 double V,A, W, WuS, adcVoltage;
-double avgV = Vsum / counter;
+/*double avgV = Vsum / counter;
 double avgA = Asum / counter;
+*/
 
 
 WiFiClient client;
@@ -268,14 +269,15 @@ void loop()
       totalPower += WH;
 
       totalSecs += lastsec;
+      
 
       Serial.print(counter);
       Serial.print(" V: ");
-      Serial.print(avgV, 7);
+      Serial.print(Vsum/counter, 7);
       Serial.print(" A: ");
-      Serial.print(avgA, 7);
+      Serial.print(Asum/counter, 7);
       Serial.print(" W: ");
-      Serial.print(avgV * avgA, 7);
+      Serial.print((Vsum/counter) * (Asum/counter) , 7);
       Serial.print(" P: ");
       Serial.print(totalPower,7);
       Serial.print(" S: ");
@@ -288,15 +290,15 @@ void loop()
       url += "/input/post?node=";
       url += sensorName;
       url += "&json={'V':";
-      url += avgV;
+      url += Vsum/counter;
       url += ",'A':";
-      url += avgA;
+      url += Asum/counter;  
       url += ",'W':";
-      url += avgV * avgA;
+      url += String((Vsum/counter) * (Asum/counter));
       url += ",'P':";
-      url += totalPower;
+      url += String(totalPower) ;
       url += ",'S':";
-      url += totalSecs/1000000;
+      url += String(totalSecs/1000000); 
       url += "}&apikey=";
       url += apikey;
 
