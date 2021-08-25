@@ -25,34 +25,44 @@
 const char *ssid = "";
 const char *password = "";
 
-const char *host = "emoncms.org";
+// Open Energy Monitoring (EmonCMS) credentials
+const char *host = "oem.lf2l.fr";
+String apikey = "c2b8c4a5fc94e757e0d6853841d553f1";
+
+// Default sensor name based on MAC adress
 String id = String((uint32_t)ESP.getEfuseMac(), HEX);
-String sensorName = "OSSP " + id;
-String apikey = "c61d0e426d578d68fc7908693fd13077";
+String sensorName = "OSSP-" + id;
+
 
 unsigned long tim1, tim2, now;
 unsigned long lasttim, elapsed;
 unsigned long lastsec = 0;
 int counter = 0;
-
+double totalPower = 0;
+double Asum = 0;
 double Vsum = 0;
+double WuSsum = 0;
 double totalSecs = 0;
+double sensitivity = 0.066;
 int numzeros = 0;
-double V;
-// double avgV = Vsum / counter;
+double V, A, W, WuS, adcVoltage; // calculation variable
+double voltage, current, power; // information displayed on the sensor dashboard
+
+bool relayState = HIGH; 
 
 // Assign each GPIO to an output:
-int outputGPIOs[NUM_OUTPUTS] = {2};
+int outputGPIOs[NUM_OUTPUTS] = {2}; // LED on the ESP32 burner board
+//int outputGPIOs[NUM_OUTPUTS] = {2}; // Relay on the board
 
 const int httpPort = 80;
 
-const long msgTimeoutLimit = 10000;        // 5 seconds
+const long msgTimeoutLimit = 10000;        // 10 seconds
 const long connectionTimeoutLimit = 30000; // 30 seconds
 unsigned long msgTimeout = millis();
 
 //*** Init object ***//
 
-EnergyMonitor emon1;
+// EnergyMonitor emon1;
 
 WiFiClient client;
 
@@ -117,9 +127,13 @@ String getOutputStates()
     myArray["gpios"][i]["output"] = String(outputGPIOs[i]);
     myArray["gpios"][i]["state"] = String(digitalRead(outputGPIOs[i]));
   }
-  myArray["power"] = 10;
-  myArray["current"] = 8;
-  myArray["voltage"] = 8;
+  myArray["ID"] = sensorName;
+  // myArray["power"] = 10;
+  myArray["power"] = power;
+  //myArray["current"] = 8;
+  myArray["current"] = current;
+  // myArray["voltage"] = 8;
+  myArray["voltage"] = voltage;
   myArray["powerfactor"] = 20;
   String jsonString = JSON.stringify(myArray);
   return jsonString;
@@ -181,14 +195,13 @@ void setup()
   Serial.begin(115200);
 
   // sdefine parameters for energy monitoring lib
-  emon1.current(1, 111.1);
+  // emon1.current(1, 111.1);
 
   // Set GPIOs as outputs
   for (int i = 0; i < NUM_OUTPUTS; i++)
   {
     pinMode(outputGPIOs[i], OUTPUT);
   }
-
 
   initSPIFFS();
   initWiFi();
@@ -222,12 +235,81 @@ void setup()
 
 void loop()
 {
-  AsyncElegantOTA.loop();
   ws.cleanupClients();
 
   // Measure the current
-  double Irms = emon1.calcIrms(1480);
+  // double Irms = emon1.calcIrms(1480);
 
+  if (!ads.begin())
+  {
+    tim1 = micros();
+
+    int16_t adc1;
+    int16_t adc0;
+    adc1 = ads.readADC_SingleEnded(1);
+    adc0 = ads.readADC_SingleEnded(0);
+
+    V = ads.computeVolts(adc1);
+    Vsum += V;
+
+    adcVoltage = ads.computeVolts(adc0);
+    A = adcVoltage / sensitivity;
+    Asum += A;
+
+    W = A * V;
+    WuS = W * elapsed;
+    WuSsum += WuS;
+
+    // count the number of glitch in data aquisition
+    if (V <= 0)
+      numzeros++;
+    else
+      numzeros = 0;
+
+    // if the number of error is higher than 2: reset the value else continue
+    if (numzeros > 2)
+    {
+      Vsum = 0;
+      counter = 0;
+      Asum = 0;
+      WuSsum = 0;
+      totalPower = 0;
+      totalSecs = 0;
+      lastsec = 0;
+      numzeros = 0;
+    }
+    else
+    {
+      counter++;
+      now = tim1;
+      elapsed = now - lasttim;
+      lastsec += elapsed;
+      lasttim = now;
+
+      // if the aquisition last more than the defined time, update energy data
+      if (lastsec > 1000000)
+      {
+        // end of our second
+        double WH = WuSsum / 3600000000; // divide by uS / H
+        totalPower += WH;
+        totalSecs += lastsec;
+
+        
+        /* current = Asum / counter; // average current
+        voltage = Vsum / counter; // average voltage
+        power = (Vsum / counter) * (Asum / counter); */
+
+        current = random(50); // average current
+        voltage = random(20); // average voltage
+        power = random(10);
+
+        // send data to web interface (clients)
+        notifyClients(getOutputStates());
+      }
+    }
+  }
+
+  // if the device is connected to a network and reach the delay, send data to the server
   if (millis() - msgTimeout > msgTimeoutLimit && WiFi.status() == WL_CONNECTED)
   {
     Serial.println("Testing host");
@@ -241,60 +323,19 @@ void loop()
       Serial.println("Connection OK");
     }
 
-    tim1 = micros();
-    if (!ads.begin())
-    {
-      int16_t adc0;
-      float volts0;
-      adc0 = ads.readADC_SingleEnded(0);
-      volts0 = ads.computeVolts(adc0);
-    }
-
-    /*Vsum += V;*/
-    if (V <= 0)
-      numzeros++;
-    else
-      numzeros = 0;
-    if (numzeros > 2)
-    {
-      Vsum = 0;
-      counter = 0;
-      totalSecs = 0;
-      lastsec = 0;
-      numzeros = 0;
-    }
-    else
-    {
-      counter++;
-      now = (tim1 + tim2) / 2;
-      elapsed = now - lasttim;
-      lastsec += elapsed;
-      lasttim = now;
-
-      if (lastsec > 1000000)
-      {
-        // end of our second
-        totalSecs += lastsec;
-
-        Serial.print(counter);
-        Serial.print(" V: ");
-        Serial.print(0);
-        // Serial.print(avgV, 7);
-        Serial.print(" S: ");
-        Serial.print(totalSecs / 1000000);
-        Serial.println();
-      }
-    }
-
     // Send the message
-
     String url = "https://";
     url += host;
     url += "/input/post?node=";
     url += sensorName;
     url += "&json={'V':";
-    url += 0;
-    //url += avgV;
+    url += voltage;
+    url += ",'A':";
+    url += current;
+    url += ",'W':";
+    url += power;
+    url += ",'P':";
+    url += totalPower;
     url += ",'S':";
     url += totalSecs / 1000000;
     url += "}&apikey=";
@@ -332,6 +373,8 @@ void loop()
 
     Vsum = 0;
     counter = 0;
+    Asum = 0;
+    WuSsum = 0;
     lastsec = 0;
   }
 }

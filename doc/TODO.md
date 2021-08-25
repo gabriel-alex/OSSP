@@ -2,7 +2,7 @@
 
 ## UI
 - [X] Create a menu to access to the different pages
-- [ ] Modify the elegant OTA page to have a menu
+- [ ] Modify the elegant OTA page to have a menu 
 - [ ] Unify the CSS framework
 
 ## Measurment 
@@ -24,6 +24,7 @@
 
 ## Hardware
 - [ ] Add a button to activate the relay
+- [ ] Add a LED to see the state of the relay
 
 
 

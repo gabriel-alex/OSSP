@@ -5,8 +5,8 @@
     <title>OSSP</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="css/milligram.min.css">
-    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <link rel="stylesheet" type="text/css" href="milligram.min.css">
+    <link rel="stylesheet" type="text/css" href="style.css">
     <!-- <link rel="icon"  type="image/png" href="favicon.png"> -->
     <!-- <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous"> -->
 </head>
@@ -15,8 +15,8 @@
     <div class='container header'>
         <div class="row header">
             <div class="column">
-                <h1 class="margin">OSSP - v1
-                    <a class="icon" id="menubtn" onclick="toggleMenu()"><img src="images\menu-white.png"></a>
+                <h1 class="margin"><span id="ID"></span>
+                    <a class="icon" id="menubtn" onclick="toggleMenu()"><img src="menu-white.png"></a>
                 </h1>
             </div>
         </div>
@@ -46,15 +46,15 @@
                 </div>
                 <div class="card">
                     <p class="card-title"><i class="fas fa-lightbulb"></i>Voltage</p>
-                    <p class="card-text"><span class="card-text" id="voltage"> V</span></p>
+                    <p class="card-text"><span id="voltage"></span> V</p>
                 </div>
                 <div class="card">
                     <p class="card-title"><i class="fas fa-lightbulb"></i>Power Factor</p>
-                    <p class="card-text"><span class="card-text" id="powerfactor"></span></p>
+                    <p class="card-text"><span id="powerfactor"></span></p>
                 </div>
             </div>
         </div>
-        <script src="js/script.js"></script>
+        <script src="script.js"></script>
 </body>
 
 </html>

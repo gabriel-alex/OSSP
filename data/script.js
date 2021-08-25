@@ -30,8 +30,8 @@ function onMessage(event) {
             for (i in myObj.gpios){
                 var output = myObj.gpios[i].output;
                 var state = myObj.gpios[i].state;
-                console.log(output);
-                console.log(state);
+                // console.log(output);
+                // console.log(state);
                 if (state == "1"){
                     document.getElementById(output).checked = true;
                     document.getElementById(output+"s").innerHTML = "ON";
@@ -42,11 +42,20 @@ function onMessage(event) {
                 }
             }
             if (myObj.current != null){
-                document.getElementById("current").innerHTML = "4546";
-            }
+                document.getElementById("current").innerHTML = myObj.current.toString();
+            }else document.getElementById("current").innerHTML = 0;
             if (myObj.power != null){
                 document.getElementById("power").innerHTML = myObj.power.toString();
-            }
+            }else document.getElementById("power").innerHTML = 0;
+            if (myObj.voltage != null){
+                document.getElementById("voltage").innerHTML = myObj.voltage.toString();
+            }else document.getElementById("voltage").innerHTML = 0;
+            if (myObj.voltage != null){
+                document.getElementById("powerfactor").innerHTML = myObj.powerfactor.toString();
+            }else document.getElementById("powerfactor").innerHTML = 0;
+            if (myObj.ID != null){
+                document.getElementById("ID").innerHTML = myObj.ID.toString();
+            }else  document.getElementById("ID").innerHTML = OSSP;
             
     console.log(event.data);
 }

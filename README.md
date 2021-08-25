@@ -34,4 +34,7 @@ Further details about the progress of this project is avaialbe [here](./doc/TODO
 [Millgram reponsive menu](https://github.com/shuedna/Milligram-baseSite-withMenu)  
 [Milligram NavBar](https://gist.github.com/primaryobjects/5a86955d0419d64ae7f5c401bb704983)
 
-[Arduino energy monitor](https://learn.openenergymonitor.org/electricity-monitoring/ctac/how-to-build-an-arduino-energy-monitor)
+[Arduino energy monitor](https://learn.openenergymonitor.org/electricity-monitoring/ctac/how-to-build-an-arduino-energy-monitor)  
+[EmonESP](https://github.com/openenergymonitor/EmonESP)
+
+[CSS framework compariosn](https://codeburst.io/evaluating-css-frameworks-bulma-vs-foundation-vs-milligram-vs-pure-vs-semantic-vs-uikit-503883bd25a3)
