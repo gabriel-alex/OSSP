@@ -93,7 +93,7 @@ void initWiFi()
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
-  if (ssid != "")
+  if (sizeof(ssid) <1 )
   {
     WiFi.begin(ssid, password);
     Serial.print("Connecting to WiFi ..");
