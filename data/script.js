@@ -59,6 +59,9 @@ function onMessage(event) {
             if (myObj.APconnected == false){
                 document.getElementById("APdisconnected").style.display = "initial";
             }else document.getElementById("APdisconnected").style.display = "none";
+            if (myObj.ADCissue == true){
+                document.getElementById("ADCissueBanner").style.display = "initial";
+            }else document.getElementById("ADCissueBanner").style.display = "none";
             
     // console.log(event.data);
 }

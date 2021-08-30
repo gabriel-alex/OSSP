@@ -8,7 +8,7 @@
 #include <Adafruit_ADS1X15.h>
 #include <SPI.h>
 //#include "EmonLib.h"
-#include <CustomEmonLib.h>
+// #include <CustomEmonLib.h>
 
 #include "SPIFFS.h"
 #include "config.h"
@@ -17,8 +17,11 @@
 #define NUM_OUTPUTS 1
 
 // 16 bits --> resolution 65536 --> 3300mV*65536
-
 #define READVCC_CALIBRATION_CONST 216268800L
+
+#define ADC_BITS    16
+
+#define ADC_COUNTS (1<<ADC_BITS)
 
 // Set your Static IP address
 // IPAddress Ip(172, 20, 10, 7);
@@ -41,12 +44,13 @@ String apikey = "c2b8c4a5fc94e757e0d6853841d553f1";
 String id = String((uint32_t)ESP.getEfuseMac(), HEX);
 String sensorName = "OSSP-" + id;
 
-unsigned long tim1, tim2, now;
-unsigned long lasttim, elapsed, lastScreenRefresh;
-double voltage, current, power, powerFactor;  // information displayed on the sensor dashboard
+
+unsigned long lastScreenRefresh;
+double Irms, Vrms, voltage, current, power, powerFactor, realPower, apparentPower;  // information displayed on the sensor dashboard
 
 bool relayState = HIGH;
 bool APconnected = LOW;
+bool ADCissue = LOW;
 
 // Assign each GPIO to an output:
 int outputGPIOs[NUM_OUTPUTS] = {2}; // LED on the ESP32 burner board
@@ -59,9 +63,33 @@ const long screenRefreshTimeout = 2000;     // refresh the client screen through
 const long connectionTimeoutLimit = 30000; // 30 seconds
 unsigned long msgTimeout = millis();
 
+//**** EmonLib Var ****//
+double VCAL = 234.26;
+double PHASECAL = 1.7;
+double offsetV = ADC_COUNTS>>1; //Low-pass filter output
+double ICAL = 111.1;
+double offsetI = ADC_COUNTS>>1; //Low-pass filter output
+
+unsigned int inPinV = 0;
+unsigned int inPinI = 1;
+
+int sampleV;                        //sample_ holds the raw analog read value
+int sampleI;
+
+double lastFilteredV,filteredV;          //Filtered_ is the raw analog value minus the DC offset
+double filteredI;
+
+double phaseShiftedV;                             //Holds the calibrated phase shifted voltage.
+
+double sqV,sumV,sqI,sumI,instP,sumP;              //sq = squared, sum = Sum, inst = instantaneous
+
+int startV;                                       //Instantaneous voltage at start of sample window.
+
+boolean lastVCross, checkVCross;                  //Used to measure number of times threshold is crossed.
+
 //*** Init object ***//
 
-EnergyMonitor emon1;
+// EnergyMonitor emon1;
 
 WiFiClient client;
 
@@ -128,6 +156,7 @@ String getOutputStates()
     myArray["gpios"][i]["state"] = String(digitalRead(outputGPIOs[i]));
   }
   myArray["APconnected"] = APconnected;
+  myArray["ADCissue"] = ADCissue;
   myArray["ID"] = sensorName;
   myArray["power"] = power;
   myArray["current"] = current;
@@ -187,14 +216,130 @@ void initWebSocket()
   server.addHandler(&ws);
 }
 
+void calcVI(unsigned int crossings, unsigned int timeout)
+{
+
+  int SupplyVoltage=3300;
+  
+  if (!ads.begin())
+  {
+    ADCissue= true;
+    notifyClients(getOutputStates());
+    Serial.println("Failed to initialize ADS.");
+    ESP.restart();
+  }else{
+    ADCissue= false;
+  }
+
+  unsigned int crossCount = 0;                             //Used to measure number of times threshold is crossed.
+  unsigned int numberOfSamples = 0;                        //This is now incremented
+
+  //-------------------------------------------------------------------------------------------------------------------------
+  // 1) Waits for the waveform to be close to 'zero' (mid-scale adc) part in sin curve.
+  //-------------------------------------------------------------------------------------------------------------------------
+  unsigned long start = millis();    //millis()-start makes sure it doesnt get stuck in the loop if there is an error.
+
+  while(1)                                   //the while loop...
+  {
+    //startV = analogRead(inPinV);                    //using the voltage waveform
+    startV = ads.readADC_SingleEnded(inPinV);
+    if ((startV < (ADC_COUNTS*0.55)) && (startV > (ADC_COUNTS*0.45))) break;  //check its within range
+    if ((millis()-start)>timeout) break;
+  }
+
+  //-------------------------------------------------------------------------------------------------------------------------
+  // 2) Main measurement loop
+  //-------------------------------------------------------------------------------------------------------------------------
+  start = millis();
+
+  while ((crossCount < crossings) && ((millis()-start)<timeout))
+  {
+    numberOfSamples++;                       //Count number of times looped.
+    lastFilteredV = filteredV;               //Used for delay/phase compensation
+
+    //-----------------------------------------------------------------------------
+    // A) Read in raw voltage and current samples
+    //-----------------------------------------------------------------------------
+    sampleV = ads.readADC_SingleEnded(inPinV);                 //Read in raw voltage signal
+    sampleI = ads.readADC_SingleEnded(inPinI);                 //Read in raw current signal
+
+    //-----------------------------------------------------------------------------
+    // B) Apply digital low pass filters to extract the 2.5 V or 1.65 V dc offset,
+    //     then subtract this - signal is now centred on 0 counts.
+    //-----------------------------------------------------------------------------
+    offsetV = offsetV + ((sampleV-offsetV)/(ADC_COUNTS));
+    filteredV = sampleV - offsetV;
+    offsetI = offsetI + ((sampleI-offsetI)/(ADC_COUNTS));
+    filteredI = sampleI - offsetI;
+
+    //-----------------------------------------------------------------------------
+    // C) Root-mean-square method voltage
+    //-----------------------------------------------------------------------------
+    sqV= filteredV * filteredV;                 //1) square voltage values
+    sumV += sqV;                                //2) sum
+
+    //-----------------------------------------------------------------------------
+    // D) Root-mean-square method current
+    //-----------------------------------------------------------------------------
+    sqI = filteredI * filteredI;                //1) square current values
+    sumI += sqI;                                //2) sum
+
+    //-----------------------------------------------------------------------------
+    // E) Phase calibration
+    //-----------------------------------------------------------------------------
+    phaseShiftedV = lastFilteredV + PHASECAL * (filteredV - lastFilteredV);
+
+    //-----------------------------------------------------------------------------
+    // F) Instantaneous power calc
+    //-----------------------------------------------------------------------------
+    instP = phaseShiftedV * filteredI;          //Instantaneous Power
+    sumP +=instP;                               //Sum
+
+    //-----------------------------------------------------------------------------
+    // G) Find the number of times the voltage has crossed the initial voltage
+    //    - every 2 crosses we will have sampled 1 wavelength
+    //    - so this method allows us to sample an integer number of half wavelengths which increases accuracy
+    //-----------------------------------------------------------------------------
+    lastVCross = checkVCross;
+    if (sampleV > startV) checkVCross = true;
+                     else checkVCross = false;
+    if (numberOfSamples==1) lastVCross = checkVCross;
+
+    if (lastVCross != checkVCross) crossCount++;
+  }
+
+  //-------------------------------------------------------------------------------------------------------------------------
+  // 3) Post loop calculations
+  //-------------------------------------------------------------------------------------------------------------------------
+  //Calculation of the root of the mean of the voltage and current squared (rms)
+  //Calibration coefficients applied.
+
+  double V_RATIO = VCAL *((SupplyVoltage/1000.0) / (ADC_COUNTS));
+  Vrms = V_RATIO * sqrt(sumV / numberOfSamples);
+
+  double I_RATIO = ICAL *((SupplyVoltage/1000.0) / (ADC_COUNTS));
+  Irms = I_RATIO * sqrt(sumI / numberOfSamples);
+
+  //Calculation power values
+  realPower = V_RATIO * I_RATIO * sumP / numberOfSamples;
+  apparentPower = Vrms * Irms;
+  powerFactor=realPower / apparentPower;
+
+  //Reset accumulators
+  sumV = 0;
+  sumI = 0;
+  sumP = 0;
+//--------------------------------------------------------------------------------------
+}
+
 void setup()
 {
   // Serial port for debugging purposes
   Serial.begin(115200);
 
   // define parameters for energy monitoring lib
-  emon1.voltage(0, 234.26, 1.7);  // Voltage: input pin, calibration, phase_shift
-  emon1.current(1, 111.1);       // Current: input pin, calibration.
+/*   emon1.voltage(0, 234.26, 1.7);  // Voltage: input pin, calibration, phase_shift
+  emon1.current(1, 111.1);    */    // Current: input pin, calibration.
 
   // Set GPIOs as outputs
   for (int i = 0; i < NUM_OUTPUTS; i++)
@@ -228,8 +373,11 @@ void setup()
 
   if (!ads.begin())
   {
+    ADCissue= true;
+    notifyClients(getOutputStates());
     Serial.println("Failed to initialize ADS.");
-  }
+    ESP.restart();
+  } 
 
   lastScreenRefresh = millis();
 }
@@ -239,12 +387,12 @@ void loop()
   ws.cleanupClients();
 
   // Measure the current
-  emon1.calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
+  calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
 
-  current = emon1.Irms; // average current
+  /* current = emon1.Irms; // average current
   voltage = emon1.Vrms; // average voltage
   power = emon1.realPower; // real power 
-  powerFactor = emon1.powerFactor; 
+  powerFactor = emon1.powerFactor;  */
 
   if (millis() - lastScreenRefresh > screenRefreshTimeout ){
     if(WiFi.status() == WL_CONNECTED){
@@ -277,11 +425,11 @@ void loop()
     url += "/input/post?node=";
     url += sensorName;
     url += "&json={'V':";
-    url += emon1.Vrms;
+    url += Vrms;
     url += ",'A':";
-    url += emon1.Irms;
+    url += Irms;
     url += ",'W':";
-    url += emon1.realPower;
+    url += realPower;
 /*     url += ",'P':";
     url += totalPower;
     url += ",'S':";
