@@ -42,16 +42,16 @@ function onMessage(event) {
                 }
             }
             if (myObj.current != null){
-                document.getElementById("current").innerHTML = myObj.current.toString();
+                document.getElementById("current").innerHTML = myObj.current.toFixed(2).toString();
             }else document.getElementById("current").innerHTML = 0;
             if (myObj.power != null){
-                document.getElementById("power").innerHTML = myObj.power.toString();
+                document.getElementById("power").innerHTML = myObj.power.toFixed(2).toString();
             }else document.getElementById("power").innerHTML = 0;
             if (myObj.voltage != null){
-                document.getElementById("voltage").innerHTML = myObj.voltage.toString();
+                document.getElementById("voltage").innerHTML = myObj.voltage.toFixed(2).toString();
             }else document.getElementById("voltage").innerHTML = 0;
             if (myObj.voltage != null){
-                document.getElementById("powerfactor").innerHTML = myObj.powerfactor.toString();
+                document.getElementById("powerfactor").innerHTML = myObj.powerfactor.toFixed(2).toString();
             }else document.getElementById("powerfactor").innerHTML = 0;
             if (myObj.ID != null){
                 document.getElementById("ID").innerHTML = myObj.ID.toString();
