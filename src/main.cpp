@@ -8,7 +8,7 @@
 #include <Adafruit_ADS1X15.h>
 #include <SPI.h>
 //#include "EmonLib.h"
-#include "CustomEmonLib.h"
+#include <CustomEmonLib.h>
 
 #include "SPIFFS.h"
 #include "config.h"
@@ -43,16 +43,6 @@ String sensorName = "OSSP-" + id;
 
 unsigned long tim1, tim2, now;
 unsigned long lasttim, elapsed, lastScreenRefresh;
-unsigned long lastsec = 0;
-int counter = 0;
-double totalPower = 0;
-double Asum = 0;
-double Vsum = 0;
-double WuSsum = 0;
-double totalSecs = 0;
-double sensitivity = 0.066;
-int numzeros = 0;
-double V, A, W, WuS, adcVoltage; // calculation variable
 double voltage, current, power, powerFactor;  // information displayed on the sensor dashboard
 
 bool relayState = HIGH;
@@ -328,11 +318,5 @@ void loop()
 
     // reinitialise variables for the next loop
     msgTimeout = millis();
-
-    Vsum = 0;
-    counter = 0;
-    Asum = 0;
-    WuSsum = 0;
-    lastsec = 0;
   }
 }
