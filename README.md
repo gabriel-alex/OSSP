@@ -38,3 +38,5 @@ Further details about the progress of this project is avaialbe [here](./doc/TODO
 [EmonESP](https://github.com/openenergymonitor/EmonESP)
 
 [CSS framework compariosn](https://codeburst.io/evaluating-css-frameworks-bulma-vs-foundation-vs-milligram-vs-pure-vs-semantic-vs-uikit-503883bd25a3)
+[Alert banner](https://codepen.io/rlemon/pen/vmIlC)
+[environment varialbe](https://community.platformio.org/t/pass-env-variables-at-build-time/4622/4)

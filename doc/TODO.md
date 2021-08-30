@@ -4,6 +4,7 @@
 - [X] Create a menu to access to the different pages
 - [ ] Modify the elegant OTA page to have a menu 
 - [ ] Unify the CSS framework
+- [X] Alert message if issue with Access Point
 
 ## Measurment 
 - [X] Integrate the EmonLib

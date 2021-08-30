@@ -55,7 +55,10 @@ function onMessage(event) {
             }else document.getElementById("powerfactor").innerHTML = 0;
             if (myObj.ID != null){
                 document.getElementById("ID").innerHTML = myObj.ID.toString();
-            }else  document.getElementById("ID").innerHTML = OSSP;
+            }else  document.getElementById("ID").innerHTML = "OSSP";
+            if (myObj.APconnected == false){
+                document.getElementById("APdisconnected").style.display = "initial";
+            }else document.getElementById("APdisconnected").style.display = "hidden";
             
     console.log(event.data);
 }
