@@ -58,9 +58,9 @@ function onMessage(event) {
             }else  document.getElementById("ID").innerHTML = "OSSP";
             if (myObj.APconnected == false){
                 document.getElementById("APdisconnected").style.display = "initial";
-            }else document.getElementById("APdisconnected").style.display = "hidden";
+            }else document.getElementById("APdisconnected").style.display = "none";
             
-    console.log(event.data);
+    // console.log(event.data);
 }
 
 // Send Requests to Control GPIOs
@@ -76,7 +76,6 @@ function toggleCheckbox (element) {
 }
 
 function toggleMenu() {
-    console.log('click')
     var menuElement = document.getElementById('menuBody')
     if( menuElement.style.flex == "none" || menuElement.style.flex == "" || menuElement.style.flex == "0 0 auto"){
         menuElement.style.flex = "auto"
