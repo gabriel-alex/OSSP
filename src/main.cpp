@@ -22,6 +22,9 @@
 // IPAddress dns(172, 20, 10, 1);
 
 // Replace with your network credentials
+/* If using env file with credentials
+const char *ssid = AP_SSID;
+const char *password = AP_PASS;*/
 const char *ssid = "";
 const char *password = "";
 
@@ -33,9 +36,8 @@ String apikey = "c2b8c4a5fc94e757e0d6853841d553f1";
 String id = String((uint32_t)ESP.getEfuseMac(), HEX);
 String sensorName = "OSSP-" + id;
 
-
 unsigned long tim1, tim2, now;
-unsigned long lasttim, elapsed;
+unsigned long lasttim, elapsed, lastScreenRefresh;
 unsigned long lastsec = 0;
 int counter = 0;
 double totalPower = 0;
@@ -46,9 +48,10 @@ double totalSecs = 0;
 double sensitivity = 0.066;
 int numzeros = 0;
 double V, A, W, WuS, adcVoltage; // calculation variable
-double voltage, current, power; // information displayed on the sensor dashboard
+double voltage, current, power;  // information displayed on the sensor dashboard
 
-bool relayState = HIGH; 
+bool relayState = HIGH;
+bool APconnected = LOW;
 
 // Assign each GPIO to an output:
 int outputGPIOs[NUM_OUTPUTS] = {2}; // LED on the ESP32 burner board
@@ -56,13 +59,14 @@ int outputGPIOs[NUM_OUTPUTS] = {2}; // LED on the ESP32 burner board
 
 const int httpPort = 80;
 
-const long msgTimeoutLimit = 10000;        // 10 seconds
+const long msgTimeoutLimit = 10000;        // send a message every 10 seconds
+const long screenRefreshTimeout = 2000;     // refresh the client screen through the websocket every 2 seconds
 const long connectionTimeoutLimit = 30000; // 30 seconds
 unsigned long msgTimeout = millis();
 
 //*** Init object ***//
 
-// EnergyMonitor emon1;
+EnergyMonitor emon1;
 
 WiFiClient client;
 
@@ -93,7 +97,7 @@ void initWiFi()
   Serial.print("AP IP address: ");
   Serial.println(IP);
 
-  if (sizeof(ssid) <1 )
+  if (sizeof(ssid) > 1)
   {
     WiFi.begin(ssid, password);
     Serial.print("Connecting to WiFi ..");
@@ -111,6 +115,7 @@ void initWiFi()
     else
     {
       Serial.println(WiFi.localIP());
+      APconnected = HIGH;
     }
   }
   else
@@ -127,14 +132,12 @@ String getOutputStates()
     myArray["gpios"][i]["output"] = String(outputGPIOs[i]);
     myArray["gpios"][i]["state"] = String(digitalRead(outputGPIOs[i]));
   }
+  myArray["APconnected"] = APconnected;
   myArray["ID"] = sensorName;
-  // myArray["power"] = 10;
   myArray["power"] = power;
-  //myArray["current"] = 8;
   myArray["current"] = current;
-  // myArray["voltage"] = 8;
   myArray["voltage"] = voltage;
-  myArray["powerfactor"] = 20;
+  myArray["powerfactor"] = "N/A";
   String jsonString = JSON.stringify(myArray);
   return jsonString;
 }
@@ -194,8 +197,9 @@ void setup()
   // Serial port for debugging purposes
   Serial.begin(115200);
 
-  // sdefine parameters for energy monitoring lib
-  // emon1.current(1, 111.1);
+  // define parameters for energy monitoring lib
+  emon1.voltage(2, 234.26, 1.7);  // Voltage: input pin, calibration, phase_shift
+  emon1.current(1, 111.1);       // Current: input pin, calibration.
 
   // Set GPIOs as outputs
   for (int i = 0; i < NUM_OUTPUTS; i++)
@@ -231,85 +235,41 @@ void setup()
   {
     Serial.println("Failed to initialize ADS.");
   }
+
+  lastScreenRefresh = millis();
 }
 
 void loop()
 {
   ws.cleanupClients();
 
-  // Measure the current
-  // double Irms = emon1.calcIrms(1480);
-
-  if (!ads.begin())
-  {
-    tim1 = micros();
-
-    int16_t adc1;
-    int16_t adc0;
-    adc1 = ads.readADC_SingleEnded(1);
-    adc0 = ads.readADC_SingleEnded(0);
-
-    V = ads.computeVolts(adc1);
-    Vsum += V;
-
-    adcVoltage = ads.computeVolts(adc0);
-    A = adcVoltage / sensitivity;
-    Asum += A;
-
-    W = A * V;
-    WuS = W * elapsed;
-    WuSsum += WuS;
-
-    // count the number of glitch in data aquisition
-    if (V <= 0)
-      numzeros++;
-    else
-      numzeros = 0;
-
-    // if the number of error is higher than 2: reset the value else continue
-    if (numzeros > 2)
-    {
-      Vsum = 0;
-      counter = 0;
-      Asum = 0;
-      WuSsum = 0;
-      totalPower = 0;
-      totalSecs = 0;
-      lastsec = 0;
-      numzeros = 0;
+  if (millis() - lastScreenRefresh > screenRefreshTimeout ){
+    if(WiFi.status() == WL_CONNECTED){
+      APconnected = HIGH;
+    }else{
+      APconnected = LOW;
     }
-    else
-    {
-      counter++;
-      now = tim1;
-      elapsed = now - lasttim;
-      lastsec += elapsed;
-      lasttim = now;
 
-      // if the aquisition last more than the defined time, update energy data
-      if (lastsec > 1000000)
-      {
-        // end of our second
-        double WH = WuSsum / 3600000000; // divide by uS / H
-        totalPower += WH;
-        totalSecs += lastsec;
-
-        
-        /* current = Asum / counter; // average current
-        voltage = Vsum / counter; // average voltage
-        power = (Vsum / counter) * (Asum / counter); */
-
-        current = random(50); // average current
-        voltage = random(20); // average voltage
-        power = random(10);
-
-        // send data to web interface (clients)
-        notifyClients(getOutputStates());
-      }
-    }
+    current = random(50); // average current
+    voltage = random(20); // average voltage
+    power = random(10);
+    
+    notifyClients(getOutputStates());
+    lastScreenRefresh = millis();
   }
 
-  // if the device is connected to a network and reach the delay, send data to the server
+
+
+  // Measure the current
+  emon1.calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
+
+  float realPower       = emon1.realPower;        //extract Real Power into variable
+  float apparentPower   = emon1.apparentPower;    //extract Apparent Power into variable
+  float powerFActor     = emon1.powerFactor;      //extract Power Factor into Variable
+  float supplyVoltage   = emon1.Vrms;             //extract Vrms into Variable
+  float Irms            = emon1.Irms;             //extract Irms into Variable
+
+    // if the device is connected to a network and reach the delay, send data to the server
   if (millis() - msgTimeout > msgTimeoutLimit && WiFi.status() == WL_CONNECTED)
   {
     Serial.println("Testing host");
