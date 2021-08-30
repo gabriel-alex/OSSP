@@ -7,13 +7,18 @@
 #include <AsyncElegantOTA.h>
 #include <Adafruit_ADS1X15.h>
 #include <SPI.h>
-#include "EmonLib.h"
+//#include "EmonLib.h"
+#include "CustomEmonLib.h"
 
 #include "SPIFFS.h"
 #include "config.h"
 
 // Set number of outputs
 #define NUM_OUTPUTS 1
+
+// 16 bits --> resolution 65536 --> 3300mV*65536
+
+#define READVCC_CALIBRATION_CONST 216268800L
 
 // Set your Static IP address
 // IPAddress Ip(172, 20, 10, 7);
@@ -48,7 +53,7 @@ double totalSecs = 0;
 double sensitivity = 0.066;
 int numzeros = 0;
 double V, A, W, WuS, adcVoltage; // calculation variable
-double voltage, current, power;  // information displayed on the sensor dashboard
+double voltage, current, power, powerFactor;  // information displayed on the sensor dashboard
 
 bool relayState = HIGH;
 bool APconnected = LOW;
@@ -137,7 +142,7 @@ String getOutputStates()
   myArray["power"] = power;
   myArray["current"] = current;
   myArray["voltage"] = voltage;
-  myArray["powerfactor"] = "N/A";
+  myArray["powerfactor"] = powerFactor;
   String jsonString = JSON.stringify(myArray);
   return jsonString;
 }
@@ -198,7 +203,7 @@ void setup()
   Serial.begin(115200);
 
   // define parameters for energy monitoring lib
-  emon1.voltage(2, 234.26, 1.7);  // Voltage: input pin, calibration, phase_shift
+  emon1.voltage(0, 234.26, 1.7);  // Voltage: input pin, calibration, phase_shift
   emon1.current(1, 111.1);       // Current: input pin, calibration.
 
   // Set GPIOs as outputs
@@ -243,31 +248,24 @@ void loop()
 {
   ws.cleanupClients();
 
+  // Measure the current
+  emon1.calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
+
+  current = emon1.Irms; // average current
+  voltage = emon1.Vrms; // average voltage
+  power = emon1.realPower; // real power 
+  powerFactor = emon1.powerFactor; 
+
   if (millis() - lastScreenRefresh > screenRefreshTimeout ){
     if(WiFi.status() == WL_CONNECTED){
       APconnected = HIGH;
     }else{
       APconnected = LOW;
     }
-
-    current = random(50); // average current
-    voltage = random(20); // average voltage
-    power = random(10);
     
     notifyClients(getOutputStates());
     lastScreenRefresh = millis();
   }
-
-
-
-  // Measure the current
-  emon1.calcVI(20,2000);         // Calculate all. No.of half wavelengths (crossings), time-out
-
-  float realPower       = emon1.realPower;        //extract Real Power into variable
-  float apparentPower   = emon1.apparentPower;    //extract Apparent Power into variable
-  float powerFActor     = emon1.powerFactor;      //extract Power Factor into Variable
-  float supplyVoltage   = emon1.Vrms;             //extract Vrms into Variable
-  float Irms            = emon1.Irms;             //extract Irms into Variable
 
     // if the device is connected to a network and reach the delay, send data to the server
   if (millis() - msgTimeout > msgTimeoutLimit && WiFi.status() == WL_CONNECTED)
@@ -289,15 +287,15 @@ void loop()
     url += "/input/post?node=";
     url += sensorName;
     url += "&json={'V':";
-    url += voltage;
+    url += emon1.Vrms;
     url += ",'A':";
-    url += current;
+    url += emon1.Irms;
     url += ",'W':";
-    url += power;
-    url += ",'P':";
+    url += emon1.realPower;
+/*     url += ",'P':";
     url += totalPower;
     url += ",'S':";
-    url += totalSecs / 1000000;
+    url += totalSecs / 1000000; */
     url += "}&apikey=";
     url += apikey;
 
